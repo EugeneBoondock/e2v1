@@ -9,7 +9,8 @@ class Earth2Vision {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({
             antialias: true,
-            alpha: true
+            alpha: true,
+            powerPreference: "high-performance"
         });
         this.controls = null;
         this.earth = null;
@@ -22,84 +23,77 @@ class Earth2Vision {
 
     async init() {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.container.appendChild(this.renderer.domElement);
-
         this.camera.position.z = this.zoomLevel;
 
-        // Simplified lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        this.scene.add(ambientLight);
-
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-        directionalLight.position.set(5, 3, 5);
-        this.scene.add(directionalLight);
-
-        // Medium resolution textures (2K instead of 8K)
+        // Smart texture loading with progressive quality
         const textureLoader = new THREE.TextureLoader();
-        const [texture, bumpMap] = await Promise.all([
-            textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'),
-            textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg')
+        const [colorMap, normalMap, specularMap] = await Promise.all([
+            textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_atmos_4096.jpg'),
+            textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_normal_4096.jpg'),
+            textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_specular_4096.jpg')
         ]);
 
-        // Reduced geometry complexity
-        const geometry = new THREE.SphereGeometry(1, 64, 64);
+        // Optimized 4K material setup
+        const geometry = new THREE.SphereGeometry(1, 128, 128);
         const material = new THREE.MeshPhongMaterial({
-            map: texture,
-            bumpMap: bumpMap,
-            bumpScale: 0.05,
+            map: colorMap,
+            bumpMap: normalMap,
+            bumpScale: 0.1,
+            specularMap: specularMap,
             specular: new THREE.Color(0x00ff88),
-            shininess: 10,
-            emissive: 0x003300,
-            emissiveIntensity: 0.2
+            shininess: 15,
+            emissive: 0x002200,
+            emissiveIntensity: 0.3
         });
 
         this.earth = new THREE.Mesh(geometry, material);
         this.scene.add(this.earth);
 
-        // Simplified atmosphere
+        // Performance-friendly atmosphere
         const atmosphere = new THREE.Mesh(
-            new THREE.SphereGeometry(1.02, 32, 32),
+            new THREE.SphereGeometry(1.02, 64, 64),
+            new THREE.MeshBasicMaterial({
+                color: 0x00ff88,
+                transparent: true,
+                opacity: 0.12,
+                depthWrite: false
+            })
+        );
+        this.scene.add(atmosphere);
+
+        // Lightweight starfield (keep this simple)
+        const stars = new THREE.BufferGeometry();
+        const starPositions = new Float32Array(5000 * 3);
+        for(let i = 0; i < 5000 * 3; i++) {
+            starPositions[i] = (Math.random() - 0.5) * 2000;
+        }
+        stars.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        this.scene.add(new THREE.Points(stars, new THREE.PointsMaterial({
+            color: 0xFFFFFF,
+            size: 0.5
+        })));
+
+        // Basic tile grid (keep sparse)
+        const tile = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.15, 0.15),
             new THREE.MeshBasicMaterial({
                 color: 0x00ff88,
                 transparent: true,
                 opacity: 0.1
             })
         );
-        this.scene.add(atmosphere);
-
-        // Optimized star field
-        const starsGeometry = new THREE.BufferGeometry();
-        const starsVertices = new Float32Array(3000 * 3);
-        for(let i = 0; i < 3000 * 3; i += 3) {
-            starsVertices[i] = (Math.random() - 0.5) * 2000;
-            starsVertices[i+1] = (Math.random() - 0.5) * 2000;
-            starsVertices[i+2] = (Math.random() - 0.5) * 2000;
-        }
-        starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsVertices, 3));
-        const starField = new THREE.Points(
-            starsGeometry,
-            new THREE.PointsMaterial({color: 0xFFFFFF, size: 0.5})
-        );
-        this.scene.add(starField);
-
-        // Basic tile grid (reduced density)
-        const tileGeometry = new THREE.PlaneGeometry(0.2, 0.2);
-        const tileMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00ff88,
-            transparent: true,
-            opacity: 0.1
-        });
-
-        for(let lat = -80; lat <= 80; lat += 10) {
-            for(let lon = -180; lon <= 180; lon += 10) {
-                const tile = new THREE.Mesh(tileGeometry, tileMaterial);
-                this.positionOnSphere(tile, lat, lon, 1.01);
-                this.earth.add(tile);
+        
+        for(let lat = -80; lat <= 80; lat += 8) {
+            for(let lon = -180; lon <= 180; lon += 8) {
+                const tileClone = tile.clone();
+                this.positionOnSphere(tileClone, lat, lon, 1.01);
+                this.earth.add(tileClone);
             }
         }
 
-        // Initialize controls
+        // Controls setup
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
@@ -115,7 +109,6 @@ class Earth2Vision {
         document.getElementById('zoomOut').addEventListener('click', () => this.adjustZoom(1.2));
         document.getElementById('zoomTiles').addEventListener('click', () => this.zoomToTiles());
 
-        // Hide loading screen
         this.loadingScreen.style.display = 'none';
         this.animate();
     }
@@ -135,8 +128,8 @@ class Earth2Vision {
     }
 
     adjustZoom(factor) {
-        this.zoomLevel *= factor;
-        this.camera.position.z = THREE.MathUtils.clamp(this.zoomLevel, 1, 5);
+        this.zoomLevel = THREE.MathUtils.clamp(this.zoomLevel * factor, 1, 5);
+        this.camera.position.z = this.zoomLevel;
     }
 
     zoomToTiles() {
@@ -146,17 +139,15 @@ class Earth2Vision {
 
     animate() {
         requestAnimationFrame(this.animate.bind(this));
-        if(this.autoRotate) {
-            this.earth.rotation.y += 0.0005 * this.rotationSpeed;
-        }
+        if(this.autoRotate) this.earth.rotation.y += 0.0005 * this.rotationSpeed;
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
 
     toggleRotation() {
         this.autoRotate = !this.autoRotate;
-        const btn = document.getElementById('toggleRotation');
-        btn.textContent = this.autoRotate ? '⏸ PAUSE SIMULATION' : '▶ RESUME SIMULATION';
+        document.getElementById('toggleRotation').textContent = 
+            this.autoRotate ? '⏸ PAUSE SIMULATION' : '▶ RESUME SIMULATION';
     }
 
     resetView() {
@@ -172,6 +163,4 @@ class Earth2Vision {
     }
 }
 
-window.addEventListener('load', () => {
-    new Earth2Vision();
-});
+window.addEventListener('load', () => new Earth2Vision());
