@@ -33,24 +33,22 @@ class Earth2Vision {
 
         const textureLoader = new THREE.TextureLoader();
         const baseURL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/';
-        
-        // Load textures with fallback
+
         const loadTexture = async (path) => {
             try {
                 return await textureLoader.loadAsync(baseURL + path);
             } catch (error) {
                 console.error('Failed to load texture:', path);
-                return textureLoader.load(baseURL + 'earth_atmos_4096.jpg'); // Fallback texture
+                return textureLoader.load(baseURL + 'earth_atmos_4096.jpg');
             }
         };
 
         const [colorMap, normalMap, specularMap] = await Promise.all([
             loadTexture('earth_atmos_4096.jpg'),
             loadTexture('earth_normal_4096.jpg'),
-            loadTexture('earth_specular_4096.jpg')
+            loadTexture('earth_specular_2048.jpg')
         ]);
 
-        // Create globe material
         const material = new THREE.MeshPhongMaterial({
             map: colorMap,
             bumpMap: normalMap,
@@ -62,12 +60,10 @@ class Earth2Vision {
             emissiveIntensity: 0.3
         });
 
-        // Create earth sphere
         const geometry = new THREE.SphereGeometry(1, 128, 128);
         this.earth = new THREE.Mesh(geometry, material);
         this.scene.add(this.earth);
 
-        // Add atmosphere
         const atmosphere = new THREE.Mesh(
             new THREE.SphereGeometry(1.02, 64, 64),
             new THREE.MeshBasicMaterial({
@@ -79,7 +75,6 @@ class Earth2Vision {
         );
         this.scene.add(atmosphere);
 
-        // Create starfield
         const stars = new THREE.BufferGeometry();
         const starPositions = new Float32Array(5000 * 3);
         for(let i = 0; i < 5000 * 3; i++) {
@@ -91,7 +86,6 @@ class Earth2Vision {
             size: 0.5
         })));
 
-        // Create tile grid
         const tile = new THREE.Mesh(
             new THREE.PlaneGeometry(0.15, 0.15),
             new THREE.MeshBasicMaterial({
@@ -100,7 +94,7 @@ class Earth2Vision {
                 opacity: 0.1
             })
         );
-        
+
         for(let lat = -80; lat <= 80; lat += 8) {
             for(let lon = -180; lon <= 180; lon += 8) {
                 const tileClone = tile.clone();
@@ -109,7 +103,6 @@ class Earth2Vision {
             }
         }
 
-        // Initialize map view elements
         this.mapTexture = await loadTexture('earth_atmos_4096.jpg');
         this.mapPlane = new THREE.Mesh(
             new THREE.PlaneGeometry(4, 2, 100, 50),
@@ -122,17 +115,14 @@ class Earth2Vision {
         this.mapPlane.visible = false;
         this.scene.add(this.mapPlane);
 
-        // Setup label container
         this.labelContainer.style.position = 'fixed';
         this.labelContainer.style.pointerEvents = 'none';
         document.body.appendChild(this.labelContainer);
 
-        // Initialize controls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
 
-        // Event listeners
         window.addEventListener('resize', this.onWindowResize.bind(this));
         document.getElementById('toggleRotation').addEventListener('click', this.toggleRotation.bind(this));
         document.getElementById('resetView').addEventListener('click', this.resetView.bind(this));
@@ -144,7 +134,6 @@ class Earth2Vision {
         document.getElementById('zoomTiles').addEventListener('click', () => this.zoomToTiles());
         document.getElementById('toggleMap').addEventListener('click', () => this.toggleMapView());
 
-        // Start animation
         this.loadingScreen.style.display = 'none';
         this.animate();
     }
@@ -152,39 +141,39 @@ class Earth2Vision {
     positionOnSphere(obj, lat, lon, radius) {
         const phi = (90 - lat) * Math.PI / 180;
         const theta = (lon + 180) * Math.PI / 180;
-        
+
         obj.position.set(
             -radius * Math.sin(phi) * Math.cos(theta),
             radius * Math.cos(phi),
             radius * Math.sin(phi) * Math.sin(theta)
         );
-        
+
         obj.lookAt(0, 0, 0);
-        obj.rotateX(Math.PI/2);
+        obj.rotateX(Math.PI / 2);
     }
 
     adjustZoom(factor) {
         this.zoomLevel = THREE.MathUtils.clamp(this.zoomLevel * factor, 1, 5);
         this.camera.position.z = this.zoomLevel;
-        if(this.isMapView) this.updateLabels();
+        if (this.isMapView) this.updateLabels();
     }
 
     zoomToTiles() {
         this.zoomLevel = 1.5;
         this.camera.position.z = 1.5;
-        if(this.isMapView) this.updateLabels();
+        if (this.isMapView) this.updateLabels();
     }
 
     animate() {
         requestAnimationFrame(this.animate.bind(this));
-        if(this.autoRotate && !this.isMapView) this.earth.rotation.y += 0.0005 * this.rotationSpeed;
+        if (this.autoRotate && !this.isMapView) this.earth.rotation.y += 0.0005 * this.rotationSpeed;
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
 
     toggleRotation() {
         this.autoRotate = !this.autoRotate;
-        document.getElementById('toggleRotation').textContent = 
+        document.getElementById('toggleRotation').textContent =
             this.autoRotate ? '⏸ PAUSE SIMULATION' : '▶ RESUME SIMULATION';
     }
 
@@ -192,25 +181,25 @@ class Earth2Vision {
         this.camera.position.set(0, 0, 2.5);
         this.earth.rotation.set(0, 0, 0);
         this.controls.update();
-        if(this.isMapView) this.updateLabels();
+        if (this.isMapView) this.updateLabels();
     }
 
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        if(this.isMapView) this.updateLabels();
+        if (this.isMapView) this.updateLabels();
     }
 
     toggleMapView() {
         this.isMapView = !this.isMapView;
         this.earth.visible = !this.isMapView;
         this.mapPlane.visible = this.isMapView;
-        
-        document.getElementById('toggleMap').textContent = 
+
+        document.getElementById('toggleMap').textContent =
             this.isMapView ? '🌍 SHOW GLOBE VIEW' : '🗺 SHOW MAP VIEW';
 
-        if(this.isMapView) {
+        if (this.isMapView) {
             this.switchToMapMode();
         } else {
             this.switchToGlobeMode();
@@ -233,7 +222,7 @@ class Earth2Vision {
 
     updateLabels() {
         this.clearLabels();
-        
+
         const countries = [
             { name: "AmeriZone", lat: 45, lon: -100 },
             { name: "EuropaSec", lat: 50, lon: 10 },
@@ -248,17 +237,17 @@ class Earth2Vision {
             label.textContent = country.name;
             label.style.color = '#00ff88';
             label.style.position = 'absolute';
-            
+
             const vector = new THREE.Vector3(
                 (country.lon / 180) * 2,
                 -(country.lat / 90),
                 0
             );
-            
+
             vector.project(this.camera);
-            const x = (vector.x *  .5 + 0.5) * window.innerWidth;
+            const x = (vector.x * .5 + 0.5) * window.innerWidth;
             const y = (vector.y * -.5 + 0.5) * window.innerHeight;
-            
+
             label.style.left = `${x}px`;
             label.style.top = `${y}px`;
             this.labelContainer.appendChild(label);
@@ -266,7 +255,7 @@ class Earth2Vision {
     }
 
     clearLabels() {
-        while(this.labelContainer.firstChild) {
+        while (this.labelContainer.firstChild) {
             this.labelContainer.removeChild(this.labelContainer.firstChild);
         }
     }
