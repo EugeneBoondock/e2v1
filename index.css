@@ -182,3 +182,12 @@ body {
     z-index: 100;
     transition: all 0.3s;
 }
+
+.map-label {
+    position: absolute;
+    font-size: 12px;
+    text-shadow: 0 0 5px rgba(0, 255, 136, 0.8);
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
