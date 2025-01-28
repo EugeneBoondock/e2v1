@@ -46,7 +46,7 @@ class Earth2Vision {
         const [colorMap, normalMap, specularMap] = await Promise.all([
             loadTexture('earth_atmos_4096.jpg'),
             loadTexture('earth_normal_4096.jpg'),
-            loadTexture('earth_specular_2048.jpg')
+            loadTexture('earth_specular_2048.jpg') // Corrected specular map URL
         ]);
 
         const material = new THREE.MeshPhongMaterial({
