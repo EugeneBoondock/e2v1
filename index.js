@@ -19,7 +19,6 @@ class Earth2Vision {
         this.zoomLevel = 2.5;
         this.isMapView = false;
         this.mapPlane = null;
-        this.mapTexture = null;
         this.labelContainer = document.createElement('div');
 
         this.init();
@@ -31,39 +30,18 @@ class Earth2Vision {
         this.container.appendChild(this.renderer.domElement);
         this.camera.position.z = this.zoomLevel;
 
-        const textureLoader = new THREE.TextureLoader();
-        const baseURL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/';
-
-        const loadTexture = async (path) => {
-            try {
-                return await textureLoader.loadAsync(baseURL + path);
-            } catch (error) {
-                console.error('Failed to load texture:', path);
-                return textureLoader.load(baseURL + 'earth_atmos_4096.jpg');
-            }
-        };
-
-        const [colorMap, normalMap, specularMap] = await Promise.all([
-            loadTexture('earth_atmos_4096.jpg'),
-            loadTexture('earth_normal_4096.jpg'),
-            loadTexture('earth_specular_2048.jpg') // Corrected specular map URL
-        ]);
-
-        const material = new THREE.MeshPhongMaterial({
-            map: colorMap,
-            bumpMap: normalMap,
-            bumpScale: 0.1,
-            specularMap: specularMap,
-            specular: new THREE.Color(0x00ff88),
-            shininess: 15,
-            emissive: 0x002200,
-            emissiveIntensity: 0.3
+        // Simplified Globe Material (Green color, no textures)
+        const earthMaterial = new THREE.MeshBasicMaterial({
+            color: 0x3498db, // Blue color for oceans, can be changed
+            wireframe: false // Set to true for wireframe globe
         });
 
-        const geometry = new THREE.SphereGeometry(1, 128, 128);
-        this.earth = new THREE.Mesh(geometry, material);
+        // Create earth sphere
+        const geometry = new THREE.SphereGeometry(1, 64, 64); // Reduced segments for simpler look if needed
+        this.earth = new THREE.Mesh(geometry, earthMaterial);
         this.scene.add(this.earth);
 
+        // Atmosphere (optional, keep it simple or remove)
         const atmosphere = new THREE.Mesh(
             new THREE.SphereGeometry(1.02, 64, 64),
             new THREE.MeshBasicMaterial({
@@ -75,6 +53,7 @@ class Earth2Vision {
         );
         this.scene.add(atmosphere);
 
+        // Starfield background (optional, can simplify further if needed)
         const stars = new THREE.BufferGeometry();
         const starPositions = new Float32Array(5000 * 3);
         for(let i = 0; i < 5000 * 3; i++) {
@@ -86,6 +65,7 @@ class Earth2Vision {
             size: 0.5
         })));
 
+        // Tile grid (keep if you like, or remove for even simpler style)
         const tile = new THREE.Mesh(
             new THREE.PlaneGeometry(0.15, 0.15),
             new THREE.MeshBasicMaterial({
@@ -103,26 +83,30 @@ class Earth2Vision {
             }
         }
 
-        this.mapTexture = await loadTexture('earth_atmos_4096.jpg');
+        // Simplified Map Plane Material (Solid color)
         this.mapPlane = new THREE.Mesh(
             new THREE.PlaneGeometry(4, 2, 100, 50),
             new THREE.MeshBasicMaterial({
-                map: this.mapTexture,
+                color: 0x7f8c8d, // Gray color for map, can be changed
                 transparent: true,
-                opacity: 0.9
+                opacity: 0.9,
+                wireframe: false // Set to true for wireframe map
             })
         );
         this.mapPlane.visible = false;
         this.scene.add(this.mapPlane);
 
+        // Setup label container
         this.labelContainer.style.position = 'fixed';
         this.labelContainer.style.pointerEvents = 'none';
         document.body.appendChild(this.labelContainer);
 
+        // Initialize controls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
 
+        // Event listeners
         window.addEventListener('resize', this.onWindowResize.bind(this));
         document.getElementById('toggleRotation').addEventListener('click', this.toggleRotation.bind(this));
         document.getElementById('resetView').addEventListener('click', this.resetView.bind(this));
@@ -134,6 +118,7 @@ class Earth2Vision {
         document.getElementById('zoomTiles').addEventListener('click', () => this.zoomToTiles());
         document.getElementById('toggleMap').addEventListener('click', () => this.toggleMapView());
 
+        // Start animation
         this.loadingScreen.style.display = 'none';
         this.animate();
     }
@@ -155,18 +140,18 @@ class Earth2Vision {
     adjustZoom(factor) {
         this.zoomLevel = THREE.MathUtils.clamp(this.zoomLevel * factor, 1, 5);
         this.camera.position.z = this.zoomLevel;
-        if (this.isMapView) this.updateLabels();
+        if(this.isMapView) this.updateLabels();
     }
 
     zoomToTiles() {
         this.zoomLevel = 1.5;
         this.camera.position.z = 1.5;
-        if (this.isMapView) this.updateLabels();
+        if(this.isMapView) this.updateLabels();
     }
 
     animate() {
         requestAnimationFrame(this.animate.bind(this));
-        if (this.autoRotate && !this.isMapView) this.earth.rotation.y += 0.0005 * this.rotationSpeed;
+        if(this.autoRotate && !this.isMapView) this.earth.rotation.y += 0.0005 * this.rotationSpeed;
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
@@ -181,14 +166,14 @@ class Earth2Vision {
         this.camera.position.set(0, 0, 2.5);
         this.earth.rotation.set(0, 0, 0);
         this.controls.update();
-        if (this.isMapView) this.updateLabels();
+        if(this.isMapView) this.updateLabels();
     }
 
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        if (this.isMapView) this.updateLabels();
+        if(this.isMapView) this.updateLabels();
     }
 
     toggleMapView() {
@@ -199,7 +184,7 @@ class Earth2Vision {
         document.getElementById('toggleMap').textContent =
             this.isMapView ? '🌍 SHOW GLOBE VIEW' : '🗺 SHOW MAP VIEW';
 
-        if (this.isMapView) {
+        if(this.isMapView) {
             this.switchToMapMode();
         } else {
             this.switchToGlobeMode();
@@ -255,7 +240,7 @@ class Earth2Vision {
     }
 
     clearLabels() {
-        while (this.labelContainer.firstChild) {
+        while(this.labelContainer.firstChild) {
             this.labelContainer.removeChild(this.labelContainer.firstChild);
         }
     }
