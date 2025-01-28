@@ -32,15 +32,25 @@ class Earth2Vision {
         this.camera.position.z = this.zoomLevel;
 
         const textureLoader = new THREE.TextureLoader();
+        const baseURL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/';
+        
+        // Load textures with fallback
+        const loadTexture = async (path) => {
+            try {
+                return await textureLoader.loadAsync(baseURL + path);
+            } catch (error) {
+                console.error('Failed to load texture:', path);
+                return textureLoader.load(baseURL + 'earth_atmos_4096.jpg'); // Fallback texture
+            }
+        };
+
         const [colorMap, normalMap, specularMap] = await Promise.all([
-            textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_atmos_4096.jpg'),
-            textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_normal_4096.jpg'),
-            textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_specular_4096.jpg')
+            loadTexture('earth_atmos_4096.jpg'),
+            loadTexture('earth_normal_4096.jpg'),
+            loadTexture('earth_specular_4096.jpg')
         ]);
 
-        this.mapTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_4096.jpg');
-        
-        const geometry = new THREE.SphereGeometry(1, 128, 128);
+        // Create globe material
         const material = new THREE.MeshPhongMaterial({
             map: colorMap,
             bumpMap: normalMap,
@@ -52,9 +62,12 @@ class Earth2Vision {
             emissiveIntensity: 0.3
         });
 
+        // Create earth sphere
+        const geometry = new THREE.SphereGeometry(1, 128, 128);
         this.earth = new THREE.Mesh(geometry, material);
         this.scene.add(this.earth);
 
+        // Add atmosphere
         const atmosphere = new THREE.Mesh(
             new THREE.SphereGeometry(1.02, 64, 64),
             new THREE.MeshBasicMaterial({
@@ -66,6 +79,7 @@ class Earth2Vision {
         );
         this.scene.add(atmosphere);
 
+        // Create starfield
         const stars = new THREE.BufferGeometry();
         const starPositions = new Float32Array(5000 * 3);
         for(let i = 0; i < 5000 * 3; i++) {
@@ -77,6 +91,7 @@ class Earth2Vision {
             size: 0.5
         })));
 
+        // Create tile grid
         const tile = new THREE.Mesh(
             new THREE.PlaneGeometry(0.15, 0.15),
             new THREE.MeshBasicMaterial({
@@ -94,6 +109,8 @@ class Earth2Vision {
             }
         }
 
+        // Initialize map view elements
+        this.mapTexture = await loadTexture('earth_atmos_4096.jpg');
         this.mapPlane = new THREE.Mesh(
             new THREE.PlaneGeometry(4, 2, 100, 50),
             new THREE.MeshBasicMaterial({
@@ -105,14 +122,17 @@ class Earth2Vision {
         this.mapPlane.visible = false;
         this.scene.add(this.mapPlane);
 
+        // Setup label container
         this.labelContainer.style.position = 'fixed';
         this.labelContainer.style.pointerEvents = 'none';
         document.body.appendChild(this.labelContainer);
 
+        // Initialize controls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
 
+        // Event listeners
         window.addEventListener('resize', this.onWindowResize.bind(this));
         document.getElementById('toggleRotation').addEventListener('click', this.toggleRotation.bind(this));
         document.getElementById('resetView').addEventListener('click', this.resetView.bind(this));
@@ -124,6 +144,7 @@ class Earth2Vision {
         document.getElementById('zoomTiles').addEventListener('click', () => this.zoomToTiles());
         document.getElementById('toggleMap').addEventListener('click', () => this.toggleMapView());
 
+        // Start animation
         this.loadingScreen.style.display = 'none';
         this.animate();
     }
