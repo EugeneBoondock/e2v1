@@ -113,7 +113,6 @@ body {
     color: #00ff88;
     font-size: 1.5rem;
     text-align: center;
-    z-index: 2000;
 }
 
 .loading-spinner {
@@ -152,13 +151,12 @@ body {
     background: #004422;
 }
 
-.map-label {
+.flag-marker {
     position: absolute;
-    font-size: 12px;
-    text-shadow: 0 0 5px rgba(0, 255, 136, 0.8);
-    white-space: nowrap;
+    width: 24px;
+    height: 24px;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300ff88"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>');
     transform: translate(-50%, -50%);
-    pointer-events: none;
 }
 
 @keyframes glow {
