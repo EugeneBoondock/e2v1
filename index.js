@@ -17,6 +17,10 @@ class Earth2Vision {
         this.autoRotate = true;
         this.rotationSpeed = 1;
         this.zoomLevel = 2.5;
+        this.isMapView = false;
+        this.mapPlane = null;
+        this.mapTexture = null;
+        this.labelContainer = document.createElement('div');
 
         this.init();
     }
@@ -27,7 +31,6 @@ class Earth2Vision {
         this.container.appendChild(this.renderer.domElement);
         this.camera.position.z = this.zoomLevel;
 
-        // Smart texture loading with progressive quality
         const textureLoader = new THREE.TextureLoader();
         const [colorMap, normalMap, specularMap] = await Promise.all([
             textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_atmos_4096.jpg'),
@@ -35,7 +38,8 @@ class Earth2Vision {
             textureLoader.loadAsync('https://threejs.org/examples/textures/planets/earth_specular_4096.jpg')
         ]);
 
-        // Optimized 4K material setup
+        this.mapTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_4096.jpg');
+        
         const geometry = new THREE.SphereGeometry(1, 128, 128);
         const material = new THREE.MeshPhongMaterial({
             map: colorMap,
@@ -51,7 +55,6 @@ class Earth2Vision {
         this.earth = new THREE.Mesh(geometry, material);
         this.scene.add(this.earth);
 
-        // Performance-friendly atmosphere
         const atmosphere = new THREE.Mesh(
             new THREE.SphereGeometry(1.02, 64, 64),
             new THREE.MeshBasicMaterial({
@@ -63,7 +66,6 @@ class Earth2Vision {
         );
         this.scene.add(atmosphere);
 
-        // Lightweight starfield (keep this simple)
         const stars = new THREE.BufferGeometry();
         const starPositions = new Float32Array(5000 * 3);
         for(let i = 0; i < 5000 * 3; i++) {
@@ -75,7 +77,6 @@ class Earth2Vision {
             size: 0.5
         })));
 
-        // Basic tile grid (keep sparse)
         const tile = new THREE.Mesh(
             new THREE.PlaneGeometry(0.15, 0.15),
             new THREE.MeshBasicMaterial({
@@ -93,12 +94,25 @@ class Earth2Vision {
             }
         }
 
-        // Controls setup
+        this.mapPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(4, 2, 100, 50),
+            new THREE.MeshBasicMaterial({
+                map: this.mapTexture,
+                transparent: true,
+                opacity: 0.9
+            })
+        );
+        this.mapPlane.visible = false;
+        this.scene.add(this.mapPlane);
+
+        this.labelContainer.style.position = 'fixed';
+        this.labelContainer.style.pointerEvents = 'none';
+        document.body.appendChild(this.labelContainer);
+
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
 
-        // Event listeners
         window.addEventListener('resize', this.onWindowResize.bind(this));
         document.getElementById('toggleRotation').addEventListener('click', this.toggleRotation.bind(this));
         document.getElementById('resetView').addEventListener('click', this.resetView.bind(this));
@@ -108,6 +122,7 @@ class Earth2Vision {
         document.getElementById('zoomIn').addEventListener('click', () => this.adjustZoom(0.8));
         document.getElementById('zoomOut').addEventListener('click', () => this.adjustZoom(1.2));
         document.getElementById('zoomTiles').addEventListener('click', () => this.zoomToTiles());
+        document.getElementById('toggleMap').addEventListener('click', () => this.toggleMapView());
 
         this.loadingScreen.style.display = 'none';
         this.animate();
@@ -130,16 +145,18 @@ class Earth2Vision {
     adjustZoom(factor) {
         this.zoomLevel = THREE.MathUtils.clamp(this.zoomLevel * factor, 1, 5);
         this.camera.position.z = this.zoomLevel;
+        if(this.isMapView) this.updateLabels();
     }
 
     zoomToTiles() {
         this.zoomLevel = 1.5;
         this.camera.position.z = 1.5;
+        if(this.isMapView) this.updateLabels();
     }
 
     animate() {
         requestAnimationFrame(this.animate.bind(this));
-        if(this.autoRotate) this.earth.rotation.y += 0.0005 * this.rotationSpeed;
+        if(this.autoRotate && !this.isMapView) this.earth.rotation.y += 0.0005 * this.rotationSpeed;
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
@@ -154,12 +171,83 @@ class Earth2Vision {
         this.camera.position.set(0, 0, 2.5);
         this.earth.rotation.set(0, 0, 0);
         this.controls.update();
+        if(this.isMapView) this.updateLabels();
     }
 
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        if(this.isMapView) this.updateLabels();
+    }
+
+    toggleMapView() {
+        this.isMapView = !this.isMapView;
+        this.earth.visible = !this.isMapView;
+        this.mapPlane.visible = this.isMapView;
+        
+        document.getElementById('toggleMap').textContent = 
+            this.isMapView ? '🌍 SHOW GLOBE VIEW' : '🗺 SHOW MAP VIEW';
+
+        if(this.isMapView) {
+            this.switchToMapMode();
+        } else {
+            this.switchToGlobeMode();
+        }
+    }
+
+    switchToMapMode() {
+        this.camera.position.set(0, 0, 3);
+        this.camera.lookAt(0, 0, 0);
+        this.controls.enableRotate = false;
+        this.autoRotate = false;
+        this.updateLabels();
+    }
+
+    switchToGlobeMode() {
+        this.camera.position.set(0, 0, 2.5);
+        this.controls.enableRotate = true;
+        this.clearLabels();
+    }
+
+    updateLabels() {
+        this.clearLabels();
+        
+        const countries = [
+            { name: "AmeriZone", lat: 45, lon: -100 },
+            { name: "EuropaSec", lat: 50, lon: 10 },
+            { name: "AsiaForge", lat: 35, lon: 100 },
+            { name: "AfriCore", lat: -8, lon: 20 },
+            { name: "OceaniaHub", lat: -30, lon: 150 }
+        ];
+
+        countries.forEach(country => {
+            const label = document.createElement('div');
+            label.className = 'map-label';
+            label.textContent = country.name;
+            label.style.color = '#00ff88';
+            label.style.position = 'absolute';
+            
+            const vector = new THREE.Vector3(
+                (country.lon / 180) * 2,
+                -(country.lat / 90),
+                0
+            );
+            
+            vector.project(this.camera);
+            const x = (vector.x *  .5 + 0.5) * window.innerWidth;
+            const y = (vector.y * -.5 + 0.5) * window.innerHeight;
+            
+            label.style.left = `${x}px`;
+            label.style.top = `${y}px`;
+            this.labelContainer.appendChild(label);
+        });
+    }
+
+    clearLabels() {
+        while(this.labelContainer.firstChild) {
+            this.labelContainer.removeChild(this.labelContainer.firstChild);
+        }
     }
 }
 
